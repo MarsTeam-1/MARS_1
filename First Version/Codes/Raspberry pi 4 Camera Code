@@ -1,0 +1,97 @@
+import cv2
+import numpy as np
+
+camera = cv2.VideoCapture(0)
+
+
+while True:
+    ret, frame = camera.read()
+
+    # frame to the HSV color space
+    hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    # lower and upper bounds for red and green colors
+    lower_red = np.array([0, 50, 50])
+    upper_red = np.array([5, 255, 255])
+    lower_green = np.array([60, 50, 50])
+    upper_green = np.array([80, 255, 255])
+
+    # mask for red and green colors
+    red_mask = cv2.inRange(hsv_frame, lower_red, upper_red)
+    green_mask = cv2.inRange(hsv_frame, lower_green, upper_green)
+
+    # The contours for red and green objects
+    red_contours, _ = cv2.findContours(red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    green_contours, _ = cv2.findContours(green_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # store color positions and dimensions
+    red_position = None
+    red_dimensions = None
+    green_position = None
+    green_dimensions = None
+
+    # red contours
+    for contour in red_contours:
+        # the contour area
+        area = cv2.contourArea(contour)
+
+        # Ignore small contours
+        if area > 1000:
+            # bounding rectangle for the contour
+            x, y, width, height = cv2.boundingRect(contour)
+
+            # the position of the color (left, middle, or right)
+            position = "LEFT" if x < frame.shape[1] / 2 and  x < frame.shape[1] / 5  else "Right" if x > frame.shape[1] / 2 else "middle"
+
+            ### Update red position and dimensions if it's the largest contour
+            if red_dimensions is None or area > red_dimensions:
+                red_position = position
+                red_dimensions = area
+
+                cv2.rectangle(frame, (x, y), (x + width, y + height), (0, 0, 255), 2)
+
+    # green contours
+    for contour in green_contours:
+        # the contour area
+        area = cv2.contourArea(contour)
+
+        # Ignore small contours
+        if area > 1000:
+            # the bounding rectangle for the contour
+            x, y, width, height = cv2.boundingRect(contour)
+
+            # the position of the color (left, middle, or right)
+            position = "LEFT" if x < frame.shape[1] / 2 and  x < frame.shape[1] / 5  else "Right" if x > frame.shape[1] / 2 else "middle"
+
+            ### Update green position and dimensions if it's the largest contour
+            if green_dimensions is None or area > green_dimensions:
+                green_position = position
+                green_dimensions = area
+
+                cv2.rectangle(frame, (x, y), (x + width, y + height), (0, 255, 0), 2)
+
+    # Generate the final output 
+    output = ""
+
+    if red_dimensions is not None:
+        output += f"Red color, turn right. Position: {red_position}. Dimensions: {red_dimensions}. "
+
+    if green_dimensions is not None:
+        output += f"Green color, turn left. Position: {green_position}. Dimensions: {green_dimensions}. "
+
+    # Display the output
+    print(output)
+
+    # Display the red and green masks
+    cv2.imshow("Red Mask", red_mask)
+    cv2.imshow("Green Mask", green_mask)
+
+    # Display the frame
+    cv2.imshow("Color Detection", frame)
+
+    # the 'q' key exits the loop
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+camera.release()
+cv2.destroyAllWindows()
